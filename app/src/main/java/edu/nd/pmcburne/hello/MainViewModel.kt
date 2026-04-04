@@ -1,41 +1,61 @@
 package edu.nd.pmcburne.hello
 
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+
 
 data class MainUIState(
     val counterValue: Int
 )
 
 class MainViewModel(
-    val initialCounterValue: Int = 0
+    private val dao: PlacemarkDao
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(MainUIState(initialCounterValue))
-    val uiState: StateFlow<MainUIState> = _uiState.asStateFlow()
 
-    fun incrementCounter() {
-        _uiState.update{ currentState ->
-            currentState.copy(counterValue = _uiState.value.counterValue + 1)
+    var allTags = mutableStateListOf<Tag>()
+    var allPlacemarks = mutableStateListOf<Placemark>()
+    var selectedTag by mutableStateOf("core")
+
+
+    fun selectTag(tag: String){
+        selectedTag = tag
+
+    }
+
+    fun fetchAllTags(){
+
+        viewModelScope.launch{
+            val tags = dao.getTags().distinctBy { it.tagName }.sortedBy { it.tagName }
+            allTags.clear()
+            allTags.addAll(tags)
+            println("We are able to get the tags in viewModel $allTags")
+        }
+
+//        runBlocking {
+//            val deferredAllTags = async() {
+//                dao.getTags()
+//            }
+//            newTags = deferredAllTags.await()
+//        }
+//        println("We are able to get the tags in viewModel $allTags")
+    }
+
+    fun fetchPlacemarks(){
+        viewModelScope.launch{
+            val placemarks = dao.getPlacemarksWithTag(selectedTag)
+            println("We are able to get the placemarks in viewModel $placemarks")
+            allPlacemarks.clear()
+            allPlacemarks.addAll(placemarks)
+            println("We are able to get the placemarks in viewModel $allPlacemarks")
         }
     }
 
-    fun decrementCounter() {
-        _uiState.update{ currentState ->
-            currentState.copy(counterValue = _uiState.value.counterValue - 1)
-        }
-    }
 
-    fun resetCounter() {
-        _uiState.update { currentState ->
-            currentState.copy(counterValue = 0)
-        }
-    }
-
-    val isDecrementEnabled: Boolean
-        get() = _uiState.value.counterValue > 0
-    val isResetEnabled: Boolean
-        get() = _uiState.value.counterValue > 0
 }
